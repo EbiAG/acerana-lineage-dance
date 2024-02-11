@@ -1,4 +1,5 @@
 # Data and analysis for the manuscript  **Tropical and montane *Apis cerana* show distinct dance-distance calibration curves**
+[![DOI](https://zenodo.org/badge/756072854.svg)](https://zenodo.org/doi/10.5281/zenodo.10648086)<br>
 Repository containing raw data and analysis related  to the manuscript Tropical and montane *Apis cerana* show distinct dance-distance calibration curves. The repository contains the following folders:<br>
   1. [data](data/): Contains the raw data in the [raw](data/raw/) folder, temporary files created for plotting in [temp](data/temp/) folder and outputs from the statistical models in the [output](data/output/) folder.<br>
   2. [plots](plots/): Contains plots used in the manuscript obtained from the plotting scripts in the [scripts](scripts/) folder.<br>
