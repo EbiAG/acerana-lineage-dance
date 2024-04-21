@@ -92,7 +92,76 @@ slopes_cv_em
 # Output results ----------------------------------------------------------
 
 ## Slopes of individuals ---------------------------------------------------
-write.csv(ind_slopes, "data/output/LM_ind_slopes.csv", row.names = F)
+options(scipen = 999)
+cer_dat_ind_range <- cer_dat_ind %>%
+  group_by(sub_lin_col, beeID) %>%
+  summarise(min_distance = min(distance), max_distance = max(distance)) %>%
+  separate(sub_lin_col, into = c("sub_lin", "location", "colonyID"), sep = "_")
+
+ind_slopes_csv <- ind_slopes %>%
+  separate(sub_lin, into = c("sub_lin", "location"), sep = "_") %>% # Separate into individual columns
+  left_join(cer_dat_ind_range) %>% # Add min and max distance values
+  mutate(
+    sub_lin = factor(sub_lin, levels = c("Aci", "Acc", "Ack")),
+    location = factor(location, levels = c("B", "Ku", "Ka")),
+    slope = paste(round(distance.trend, 4), "\n", "[", round(lower.CL, 4), " - ", round(upper.CL, 4), "]", sep = ""),
+    range = paste(min_distance, " - ", max_distance, sep = "")
+  ) %>% # Change levels of sub_lin for labelling purposes
+  arrange(sub_lin, location, colonyID, beeID) %>% # Arrange data
+  mutate(
+    sub_lin = case_when(
+      sub_lin == "Aci" ~ "A. indica",
+      sub_lin == "Acc" ~ "A. c. cerana",
+      sub_lin == "Ack" ~ "A. c. kashmirensis"
+    ),
+    location = case_when(
+      location == "B" ~ "Bangalore",
+      location == "Ku" ~ "Kullu",
+      location == "Ka" ~ "Kashmir"
+    )
+  ) %>%
+  dplyr::select(sub_lin, location, colonyID, beeID, slope, range) %>%
+  rename("Lineage" = sub_lin, "Location" = location, "Colony" = colonyID, "Bee ID" = beeID, "Slope" = slope, "Range" = range)
+
+write.csv(ind_slopes_csv, "data/output/LM_ind_slopes.csv", row.names = F)
+
+## Average range within colonies ---------------------------------------------------
+
+cer_dat_col_range <- cer_dat_ind_range %>%
+  right_join(ind_slopes %>%
+    separate(sub_lin, into = c("sub_lin", "location"), sep = "_")) %>%
+  group_by(sub_lin, location, colonyID) %>%
+  summarise(
+    n_bees = n(),
+    min_min_d = min(min_distance),
+    max_min_d = max(min_distance),
+    min_max_d = min(max_distance),
+    max_max_d = max(max_distance)
+  ) %>%
+  filter(n_bees > 1) %>%
+  mutate(
+    sub_lin = factor(sub_lin, levels = c("Aci", "Acc", "Ack")),
+    location = factor(location, levels = c("B", "Ku", "Ka")),
+    range_min_d = paste(min_min_d, " - ", max_min_d, sep = ""),
+    range_max_d = paste(min_max_d, " - ", max_max_d, sep = "")
+  ) %>% # Change levels of sub_lin for labelling purposes
+  arrange(sub_lin, location, colonyID) %>% # Arrange data
+  mutate(
+    sub_lin = case_when(
+      sub_lin == "Aci" ~ "A. indica",
+      sub_lin == "Acc" ~ "A. c. cerana",
+      sub_lin == "Ack" ~ "A. c. kashmirensis"
+    ),
+    location = case_when(
+      location == "B" ~ "Bangalore",
+      location == "Ku" ~ "Kullu",
+      location == "Ka" ~ "Kashmir"
+    )
+  ) %>%
+  dplyr::select(sub_lin, location, colonyID, n_bees, range_min_d, range_max_d) %>%
+  rename("Lineage" = sub_lin, "Location" = location, "Colony" = colonyID, "No. of Bees" = n_bees, "Minimum Distance Range" = range_min_d, "Maximum Distance Range" = range_max_d)  
+
+write.csv(cer_dat_col_range, "data/output/Table_Colony_Individual_DistanceRanges.csv", row.names = F)
 
 ## Predictions of individual data ------------------------------------------
 # Get IDs of bees with slopes greeater than 0
@@ -109,7 +178,7 @@ write.csv(ind_mod3_pred, "data/temp/LM_ind_predictions.csv", row.names = F)
 
 ## Results of LM comparing coef of var in slopes ---------------------------
 # marginal means
-write.csv(slopes_cv_em$emmeans %>% as.data.frame(), "data/output/LM_ind_cv_marginalmeans.csv", row.names = F)
+write.csv(slopes_cv_em$emmeans %>% as.data.frame(), "data/output/LM_ind_cv_slopes_marginalmeans.csv", row.names = F)
 
 # contrasts
-write.csv(slopes_cv_em$contrasts %>% as.data.frame(), "data/output/LM_ind_cv_contrasts.csv", row.names = F)
+write.csv(slopes_cv_em$contrasts %>% as.data.frame(), "data/output/LM_ind_cv_slopes_contrasts.csv", row.names = F)

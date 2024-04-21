@@ -8,16 +8,20 @@ library(magick)
 
 # Load data ---------------------------------------------------------------
 
-morph_dat <- read.csv("data/temp/acerana_lineage_morphometric.csv") %>% 
+# Morphometric data
+morph_dat <- read.csv("data/temp/acerana_lineage_morphometric.csv") %>%
   mutate(lineage = case_when(
-    lineage == "Apis cerana indica (Bangalore)"~"A. indica",
-    lineage == "Apis cerana cerana (Bangalore)"~"A. c. cerana (B)",
-    lineage == "Apis cerana cerana (Kullu)"~"A. c. cerana (K)",
-    lineage == "Apis cerana kashmirensis (Kashmir)"~"A. c. kashmirensis"
-  )) %>% 
-  arrange(match(lineage, c("A. indica", "A. c. cerana (B)", "A. c. cerana (K)", 
-                              "A. c. kashmirensis"))) # Arrange in specific order
+    lineage == "Apis cerana indica (Bangalore)" ~ "A. indica",
+    lineage == "Apis cerana cerana (Bangalore)" ~ "A. c. cerana (B)",
+    lineage == "Apis cerana cerana (Kullu)" ~ "A. c. cerana (K)",
+    lineage == "Apis cerana kashmirensis (Kashmir)" ~ "A. c. kashmirensis"
+  )) %>%
+  arrange(match(lineage, c(
+    "A. indica", "A. c. cerana (B)", "A. c. cerana (K)",
+    "A. c. kashmirensis"
+  ))) # Arrange in specific order
 
+# Geometric morphometric cva data
 cva_dat <- read.csv("data/raw/morphometric/geometric_morph_cva_scores.csv") %>% 
   rename_with(str_to_lower, everything()) %>% 
   mutate(lineage = case_when(
@@ -27,10 +31,29 @@ cva_dat <- read.csv("data/raw/morphometric/geometric_morph_cva_scores.csv") %>%
     lineage == "A.c.kashmirensis"~"A. c. kashmirensis"
   ))
 
-morph_dat$lineage <- factor(morph_dat$lineage, levels = c("A. indica", "A. c. cerana (B)", "A. c. cerana (K)", 
-                             "A. c. kashmirensis"))
-cva_dat$lineage <- factor(cva_dat$lineage, levels = c("A. indica", "A. c. cerana (B)", "A. c. cerana (K)", 
-                                                            "A. c. kashmirensis"))
+# Geometric morphometric pca data
+geom_morph_pca_dat <- read.csv("./data/raw/morphometric/geometric_morph_pca_scores.csv") %>%
+  rename_with(str_to_lower, everything()) %>% 
+  mutate(lineage = case_when(
+    lineage == "Apis indica Bangalore" ~ "A. indica",
+    lineage == "Apis cerana cerana Bangalore" ~ "A. c. cerana (B)",
+    lineage == "Apis cerana cerana Kullu" ~ "A. c. cerana (K)",
+    lineage == "Apis cerana kashmirensis Kashmir" ~ "A. c. kashmirensis"
+  ))
+
+
+morph_dat$lineage <- factor(morph_dat$lineage, levels = c(
+  "A. indica", "A. c. cerana (B)", "A. c. cerana (K)",
+  "A. c. kashmirensis"
+))
+cva_dat$lineage <- factor(cva_dat$lineage, levels = c(
+  "A. indica", "A. c. cerana (B)", "A. c. cerana (K)",
+  "A. c. kashmirensis"
+))
+geom_morph_pca_dat$lineage <- factor(geom_morph_pca_dat$lineage, levels = c(
+  "A. indica", "A. c. cerana (B)", "A. c. cerana (K)",
+  "A. c. kashmirensis"
+))
 
 
 # PCA of all characteristics ----------------------------------------------
@@ -90,24 +113,57 @@ plot_morph_cva <- ggplot(cva_dat, aes(x = cv1, y = cv2, group = lineage, colour 
   theme(panel.grid = element_blank(), legend.position = c(0.9, 0.2), legend.title = element_blank(), legend.text = element_text(face = "italic"), legend.background = element_blank())
 plot_morph_cva
 
+# Plot of PCA for geometric morphometric characteristics ------------------
+plot_geom_morph_pca <- ggplot(geom_morph_pca_dat, aes(x = pc1, y = pc2, group = lineage, colour = lineage)) +
+  geom_point(size = 4) +
+  labs(title = "PCA of wing-shape characteristics", x = "PC1 (22.33%)", y = "PC2 (12.61%)") +
+  scale_color_manual(values = col) +
+  stat_ellipse(level = 0.5, type = "norm") +
+  theme_bw() +
+  theme(
+    axis.text = element_text(size = 14, colour = "black"),
+    axis.title = element_text(size = 16, colour = "black"),
+    plot.title = element_text(size = 20),
+    legend.text = element_text(size = 16)
+  ) +
+  theme(panel.grid = element_blank(), legend.position = c(0.9, 0.2), legend.title = element_blank(), legend.text = element_text(face = "italic"), legend.background = element_blank())
+plot_geom_morph_pca
 
 # Combine plot ------------------------------------------------------------
 
-morph_plot <- ggarrange(plot_morph_pca, plot_morph_cva,
-                        labels=c("a)", "b)"),
-                        nrow=1, ncol=2,
-                        common.legend = T, legend = "bottom")
+morph_plot <- ggarrange(plot_morph_pca, plot_geom_morph_pca,
+  labels = c("a)", "b)"),
+  nrow = 1, ncol = 2,
+  common.legend = T, legend = "bottom"
+)
 morph_plot
+ggsave("plots/Morphometric_Analysis_Combined.png", plot = morph_plot, height = 20, width = 30, units = "cm")
 
 
 # Combine plot including other images -------------------------------------
 
 # Extract legend from cva plot in bottom position
-cva_leg <- get_legend(plot_morph_cva + theme(legend.position = "bottom"))
+# Use new get_legend function due to changes in ggplot
+get_legend_35 <- function(plot) {
+  # return all legend candidates
+  legends <- get_plot_component(plot, "guide-box", return_all = TRUE)
+  # find non-zero legends
+  nonzero <- vapply(legends, \(x) !inherits(x, "zeroGrob"), TRUE)
+  idx <- which(nonzero)
+  # return first non-zero legend if exists, and otherwise first element (which will be a zeroGrob)
+  if (length(idx) > 0) {
+    return(legends[[idx[1]]])
+  } else {
+    return(legends[[1]])
+  }
+}
+pca_leg <- get_legend_35(plot_geom_morph_pca + theme(legend.position = "bottom"))
 
 # Create right side of multipanel plot with legend
-multi_plot_right <- plot_grid(plot_morph_pca + theme(legend.position = "none"), plot_morph_cva + theme(legend.position = "none"),
-                              cva_leg, nrow=3, rel_heights = c(1,1,0.1), labels = c("D", "E", ""))
+multi_plot_right <- plot_grid(plot_morph_pca + theme(legend.position = "none"), plot_geom_morph_pca + theme(legend.position = "none"),
+  pca_leg,
+  nrow = 3, rel_heights = c(1, 1, 0.1), labels = c("D", "E", "")
+)
 multi_plot_right
 
 # Create left side of multipanel plot with images
@@ -122,8 +178,11 @@ multi_plot_left <- ggdraw() +
 multi_plot_left
 
 # Combine multipanel plot sides
-multi_plot_full <- plot_grid(multi_plot_left, multi_plot_right, nrow=1,
-                             rel_widths = c(1,0.62))
+multi_plot_full <- plot_grid(multi_plot_left, multi_plot_right,
+  nrow = 1,
+  rel_widths = c(1, 0.62)
+) +
+  theme(plot.background = element_rect(fill = "#FFFFFF", colour = NA))
 multi_plot_full
 
 # Save multipanel plot

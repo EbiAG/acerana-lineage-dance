@@ -1,4 +1,5 @@
 library(tidyverse)
+library(gghalves) #For half geoms in ggplot2
 library(ggtext)
 
 # Load data ---------------------------------------------------------------
@@ -22,6 +23,34 @@ cer_slopes <- read.csv("data/temp/LMM_all_predictions.csv") %>%
 
 # Plot --------------------------------------------------------------------
 col <- c("#EF5350", "#9CCC65", "#26A69A", "#AB47BC") # Colours for Aci_B, Acc_B, Acc_Ku, Ack_Ka
+
+
+## Violin distributions ----------------------------------------------------
+cer_plot <- ggplot() +
+  geom_half_violin(data = cer_dat, aes(x=distance, y = mean_duration, group=interaction(sub_lin, distance), colour=sub_lin, fill=sub_lin), 
+                   side="r", trim=TRUE, alpha=0.5, position = position_dodge(width=20)) +
+  geom_line(data = cer_slopes, aes(x=distance, y=yvar, colour=sub_lin), linewidth=1.2) +
+  geom_ribbon(data = cer_slopes, aes(x=distance, ymin=LCL, ymax=UCL, group=sub_lin, fill=sub_lin), alpha=0.1) +
+  
+  scale_color_manual(values=col) +
+  scale_fill_manual(values=col) +
+  theme_bw() +
+  theme(axis.ticks.x = element_blank(), axis.text = element_text(size=16, colour="black"), 
+                 axis.title = element_text(size=18, colour="black")) +
+  theme(panel.grid = element_blank(), panel.background = element_blank()) +
+  scale_x_continuous(name="Distance (m)", breaks=c(100,200,300,400,500)) +
+  scale_y_continuous(name="Waggle Phase Duration (s)", limits = c(0,3.1), breaks=c(0,1,2,3)) +
+  theme(legend.position = "none") +
+  geom_richtext(aes(x = 10, y = 3), label = "*A. indica* : Intercept = 0.304, Slope = 0.0039", 
+                colour = "#EF5350", size = 3.5, hjust = 0, fill = NA, label.color = NA) +
+  geom_richtext(aes(x = 10, y = 2.9, ), label = "*A. c. cerana* (B): Intercept = 0.256, Slope = 0.0022", 
+           colour = "#9CCC65", size = 3.5, hjust = 0, fill = NA, label.color = NA) +
+  geom_richtext(aes(x = 10, y = 2.8, ), label = "*A. c. cerana* (K): Intercept = 0.246, Slope = 0.0016", 
+                colour = "#26A69A", size = 3.5, hjust = 0, fill = NA, label.color = NA) +
+  geom_richtext(aes(x = 10, y = 2.7, ), label = "*A. c. kashmirensis* : Intercept = 0.264, Slope = 0.0018", 
+                colour = "#AB47BC", size = 3.5, hjust = 0, fill = NA, label.color = NA)
+cer_plot
+ggsave("plots/LMM_All_Slopes_Violin.png", plot = cer_plot, height = 15, width = 20, units = "cm")
 
 
 ## Mean_SD distributions ----------------------------------------------------
@@ -48,4 +77,46 @@ cer_plot_mean <- ggplot() +
   geom_richtext(aes(x = 10, y = 2.7, ), label = "*A. c. kashmirensis* : Intercept = 0.264, Slope = 0.0018", 
                 colour = "#AB47BC", size = 3.5, hjust = 0, fill = NA, label.color = NA)
 cer_plot_mean
-ggsave("plots/LMM_Slopes_MeanSD.png", plot = cer_plot_mean, height = 15, width = 20, units = "cm")
+ggsave("plots/LMM_All_Slopes_MeanSD.png", plot = cer_plot_mean, height = 15, width = 20, units = "cm")
+
+# Mean_SD Distributions wiht individual slopes --------------------------------
+# Model predictions from LMM
+cer_slopes_ind <- read.csv("data/temp/LMM_all_re_individual_intercept_predictions.csv") %>%
+  mutate(sub_lin = factor(sub_lin, levels = c("Aci_B", "Acc_B", "Acc_Ku", "Ack_Ka")))
+
+cer_plot_mean_ind <- ggplot() +
+  geom_ribbon(data = cer_slopes_ind, aes(x = distance, ymin = LCL, ymax = UCL, group = sub_lin, fill = sub_lin), alpha = 0.1) +
+  geom_line(data = cer_slopes_ind, aes(x = distance, y = yvar, colour = sub_lin), linewidth = 1.2) +
+  stat_summary(
+    data = cer_dat, aes(x = distance, y = mean_duration, group = interaction(sub_lin, distance), colour = sub_lin, fill = sub_lin),
+    fun.data = "mean_sdl", position = position_dodge(width = 20)
+  ) +
+  scale_color_manual(values = col) +
+  scale_fill_manual(values = col) +
+  theme_bw() +
+  theme(
+    axis.ticks.x = element_blank(), axis.text = element_text(size = 16, colour = "black"),
+    axis.title = element_text(size = 18, colour = "black")
+  ) +
+  theme(panel.grid = element_blank(), panel.background = element_blank()) +
+  scale_x_continuous(name = "Distance (m)", breaks = c(100, 200, 300, 400, 500)) +
+  scale_y_continuous(name = "Waggle Phase Duration (s)", limits = c(0, 3.1), breaks = c(0, 1, 2, 3)) +
+  theme(legend.position = "none") +
+  geom_richtext(aes(x = 10, y = 3),
+    label = "*A. indica* : Intercept = 0.174, Slope = 0.0042",
+    colour = "#EF5350", size = 3.5, hjust = 0, fill = NA, label.color = NA
+  ) +
+  geom_richtext(aes(x = 10, y = 2.9, ),
+    label = "*A. c. cerana* (B): Intercept = 0.254, Slope = 0.0022",
+    colour = "#9CCC65", size = 3.5, hjust = 0, fill = NA, label.color = NA
+  ) +
+  geom_richtext(aes(x = 10, y = 2.8, ),
+    label = "*A. c. cerana* (K): Intercept = 0.218, Slope = 0.0018",
+    colour = "#26A69A", size = 3.5, hjust = 0, fill = NA, label.color = NA
+  ) +
+  geom_richtext(aes(x = 10, y = 2.7, ),
+    label = "*A. c. kashmirensis* : Intercept = 0.218, Slope = 0.0020",
+    colour = "#AB47BC", size = 3.5, hjust = 0, fill = NA, label.color = NA
+  )
+cer_plot_mean_ind
+ggsave("plots/LMM_All_Slopes_IndIntercepts_MeanSD.png", plot = cer_plot_mean_ind, height = 15, width = 20, units = "cm")
